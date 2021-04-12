@@ -118,6 +118,136 @@ current_data %>%
 
 ![](women_parliament_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
+Refine this visualization:
+
+``` r
+labels <- 
+  current_data %>% 
+  drop_na() %>% 
+  mutate(percent_women = pct_women) %>%
+  arrange(desc(percent_women)) %>% 
+  slice(1:25) %>% 
+  gather(pct_women, pct_men, key = 'gender', value = 'pct') %>% 
+  mutate(percent_women = 100 * round(percent_women, 2)) %>% 
+  pull(percent_women) %>% 
+  map_chr(~str_c(., '%'))
+
+current_data %>% 
+  drop_na() %>% 
+  mutate(percent_women = pct_women) %>%
+  arrange(desc(percent_women)) %>% 
+  slice(1:25) %>% 
+  gather(pct_women, pct_men, key = 'gender', value = 'pct') %>% 
+  mutate_at(
+    vars(gender), 
+    ~str_replace(., 'pct_', '') %>% 
+      str_to_title()
+  ) %>% 
+  ggplot(
+    mapping = aes(
+      x = fct_reorder(country, percent_women), 
+      y = pct, 
+      fill = gender
+    )
+  ) +
+  geom_col() + 
+  geom_label(
+    aes(
+      x = fct_reorder(country, percent_women), 
+      y = percent_women + 0.05, 
+      label = labels
+    ),
+    fill = NA,
+    color = 'white',
+    label.size = NA,
+    size = 2
+  ) +
+  coord_flip() +
+  geom_hline(aes(yintercept = 0.5), color = 'white', linetype = 'dotted') + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 8),
+    aspect.ratio = 0.7,
+    panel.background = element_rect(fill = 'white'),
+    panel.grid = element_blank()
+  ) + 
+  labs(
+    title = 'Top 25 Countries* by Percent Women in Parliament',
+    subtitle = 'For lower parliaments in each country',
+    caption = 'Source: Inter-Parliamentary Union \n *Excluding Ecuador, Eritrea, Haiti, Sudan (missing data)',
+    y = 'Percent Breakdown of Parliament',
+    x = '',
+    fill = ''
+  )
+```
+
+![](women_parliament_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+``` r
+labels_bottom <- 
+  current_data %>% 
+  drop_na() %>% 
+  mutate(percent_women = pct_women) %>%
+  arrange(percent_women) %>% 
+  slice(1:25) %>% 
+  gather(pct_women, pct_men, key = 'gender', value = 'pct') %>% 
+  mutate(percent_women = 100 * round(percent_women, 2)) %>% 
+  pull(percent_women) %>% 
+  map_chr(~str_c(., '%'))
+
+current_data %>% 
+  drop_na() %>% 
+  mutate(percent_women = pct_women) %>%
+  arrange(percent_women) %>% 
+  slice(1:25) %>% 
+  gather(pct_women, pct_men, key = 'gender', value = 'pct') %>% 
+  mutate_at(
+    vars(gender), 
+    ~str_replace(., 'pct_', '') %>% 
+      str_to_title()
+  ) %>% 
+  ggplot(
+    mapping = aes(
+      x = fct_reorder(country, percent_women), 
+      y = pct, 
+      fill = gender
+    )
+  ) +
+  geom_col() + 
+  geom_label(
+    aes(
+      x = fct_reorder(country, percent_women), 
+      y = percent_women + 0.05, 
+      label = labels_bottom
+    ),
+    fill = NA,
+    color = 'white',
+    label.size = NA,
+    size = 2
+  ) +
+  coord_flip() +
+  geom_hline(aes(yintercept = 0.5), color = 'white', linetype = 'dotted') + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 8),
+    aspect.ratio = 0.7,
+    panel.background = element_rect(fill = 'white'),
+    panel.grid = element_blank()
+  ) + 
+  labs(
+    title = 'Bottom 25 Countries* by Percent Women in Parliament',
+    subtitle = 'For lower parliaments in each country',
+    caption = 'Source: Inter-Parliamentary Union \n *Excluding Ecuador, Eritrea, Haiti, Sudan (missing data)',
+    y = 'Percent Breakdown of Parliament',
+    x = '',
+    fill = ''
+  )
+```
+
+![](women_parliament_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
 ## Historical Data
 
 ``` r
@@ -154,7 +284,7 @@ historical_df_lower %>%
 
     ## Warning in mask$eval_all_mutate(dots[[i]]): NAs introduced by coercion
 
-![](women_parliament_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](women_parliament_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ``` r
 historical_df_lower %>% 
@@ -175,39 +305,11 @@ historical_df_lower %>%
 
     ## Warning in mask$eval_all_mutate(dots[[i]]): NAs introduced by coercion
 
-![](women_parliament_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
-
-``` r
-historical_df_lower %>% 
-  filter(Country == 'Rwanda') %>% 
-  mutate(
-    Month = if_else(is.na(Month), '01', Month),
-    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
-    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
-  ) %>% 
-  ggplot(mapping = aes(x = month_year, y = pct_women)) + 
-  geom_point()
-```
-
-![](women_parliament_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
-
-``` r
-historical_df_upper %>% 
-  filter(Country == 'Rwanda') %>% 
-  mutate(
-    Month = if_else(is.na(Month), '01', Month),
-    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
-    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
-  ) %>% 
-  ggplot(mapping = aes(x = month_year, y = pct_women)) + 
-  geom_point()
-```
-
 ![](women_parliament_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
 historical_df_lower %>% 
-  filter(Country == 'United States of America') %>% 
+  filter(Country == 'Rwanda') %>% 
   mutate(
     Month = if_else(is.na(Month), '01', Month),
     month_year = ymd(str_c(Year, Month, '01', sep = '-')),
@@ -221,7 +323,7 @@ historical_df_lower %>%
 
 ``` r
 historical_df_upper %>% 
-  filter(Country == 'United States of America') %>% 
+  filter(Country == 'Rwanda') %>% 
   mutate(
     Month = if_else(is.na(Month), '01', Month),
     month_year = ymd(str_c(Year, Month, '01', sep = '-')),
@@ -232,3 +334,31 @@ historical_df_upper %>%
 ```
 
 ![](women_parliament_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+``` r
+historical_df_lower %>% 
+  filter(Country == 'United States of America') %>% 
+  mutate(
+    Month = if_else(is.na(Month), '01', Month),
+    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
+    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
+  ) %>% 
+  ggplot(mapping = aes(x = month_year, y = pct_women)) + 
+  geom_point()
+```
+
+![](women_parliament_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+
+``` r
+historical_df_upper %>% 
+  filter(Country == 'United States of America') %>% 
+  mutate(
+    Month = if_else(is.na(Month), '01', Month),
+    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
+    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
+  ) %>% 
+  ggplot(mapping = aes(x = month_year, y = pct_women)) + 
+  geom_point()
+```
+
+![](women_parliament_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
