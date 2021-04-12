@@ -1,0 +1,152 @@
+---
+title: "Women in Parliament"
+author: "Natalie Gable"
+date: "4/12/2021"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 6
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(lubridate)
+march2021_file <- 'chamber--current_women_percent.csv'
+historical_file <- 
+  'women_in_parliament-historical_database-1945_to_2018.xlsx'
+```
+
+## Data Import
+
+```{r}
+current_data <- 
+  march2021_file %>% 
+  read_csv(
+    skip = 5
+  ) %>% 
+  transmute(
+    country = X2,
+    total_seats = if_else(`Seats*` == '-', NA_character_, `Seats*`) %>% 
+      as.integer(),
+    n_women = if_else(Women == '-', NA_character_, Women) %>% 
+      as.integer(),
+    n_men = total_seats - n_women,
+    pct_women = n_women / total_seats,
+    pct_men = n_men / total_seats
+  )
+```
+```{r}
+historical_df_lower <-
+  historical_file %>% 
+  read_xlsx() %>% 
+  filter(`Chamber Type` == 'Lower') %>% 
+  select(Country, Region, Year, Month, `Chamber Total Seats`, `Total women`)
+
+historical_df_upper <-
+  historical_file %>% 
+  read_xlsx() %>% 
+  filter(`Chamber Type` == 'Upper') %>% 
+  select(Country, Region, Year, Month, `Chamber Total Seats`, `Total women`)
+
+historical_df_lower %>% 
+  summary()
+
+historical_df_upper %>% 
+  summary()
+```
+
+## Current (March 2021) Data
+
+```{r}
+current_data %>% 
+  drop_na() %>% 
+  mutate(percent_women = pct_women) %>% 
+  gather(pct_women, pct_men, key = 'gender', value = 'pct') %>% 
+  mutate_at(vars(gender), ~str_replace(., 'pct_', '')) %>% 
+  ggplot(mapping = aes(x = fct_reorder(country, percent_women), y = pct, fill = gender)) +
+  geom_col() + 
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 3),
+    aspect.ratio = 1
+  )
+```
+
+## Historical Data
+
+```{r}
+historical_df_lower %>% 
+  mutate(
+    Month = if_else(is.na(Month), '01', Month),
+    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
+    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
+  ) %>% 
+  drop_na() %>% 
+  ggplot(mapping = aes(x = month_year, y = pct_women, color = Country)) + 
+  geom_line() + 
+  facet_wrap(vars(Region)) +
+  theme(
+    legend.position = 'none'
+  )
+```
+```{r}
+historical_df_lower %>% 
+  filter(Region == 'AME') %>% 
+  mutate(
+    Month = if_else(is.na(Month), '01', Month),
+    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
+    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
+  ) %>% 
+  drop_na() %>% 
+  ggplot(mapping = aes(x = month_year, y = pct_women, color = Country)) + 
+  geom_line()
+```
+
+```{r}
+historical_df_lower %>% 
+  filter(Country == 'Rwanda') %>% 
+  mutate(
+    Month = if_else(is.na(Month), '01', Month),
+    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
+    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
+  ) %>% 
+  ggplot(mapping = aes(x = month_year, y = pct_women)) + 
+  geom_point()
+```
+
+```{r}
+historical_df_upper %>% 
+  filter(Country == 'Rwanda') %>% 
+  mutate(
+    Month = if_else(is.na(Month), '01', Month),
+    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
+    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
+  ) %>% 
+  ggplot(mapping = aes(x = month_year, y = pct_women)) + 
+  geom_point()
+```
+```{r}
+historical_df_lower %>% 
+  filter(Country == 'United States of America') %>% 
+  mutate(
+    Month = if_else(is.na(Month), '01', Month),
+    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
+    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
+  ) %>% 
+  ggplot(mapping = aes(x = month_year, y = pct_women)) + 
+  geom_point()
+```
+```{r}
+historical_df_upper %>% 
+  filter(Country == 'United States of America') %>% 
+  mutate(
+    Month = if_else(is.na(Month), '01', Month),
+    month_year = ymd(str_c(Year, Month, '01', sep = '-')),
+    pct_women = as.integer(`Total women`) / as.integer(`Chamber Total Seats`)
+  ) %>% 
+  ggplot(mapping = aes(x = month_year, y = pct_women)) + 
+  geom_point()
+```

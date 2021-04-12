@@ -1,0 +1,267 @@
+---
+title: "Playing around with Our World in Data Energy Dataset"
+author: "Natalie Gable"
+date: "4/12/2021"
+output:
+  github_document:
+    toc: true
+    toc_depth: 6
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+owid_filename <- 'owid-energy-data.txt'
+```
+
+## Data Import
+
+```{r}
+owid_df <- 
+  owid_filename %>% 
+  read_delim(
+    delim = ',',
+    col_types = cols(
+      carbon_intensity_elec = col_double()
+    )
+  )
+```
+
+## EDA
+
+```{r}
+owid_df %>% 
+  summary()
+```
+
+What are countries that have fewer NAs?
+
+```{r}
+owid_df %>% 
+  drop_na() %>% 
+  select(country) %>% 
+  unique()
+```
+Only the UK has no NAs for some fields.
+
+Let's take a look at the US as well...
+
+```{r}
+owid_df %>% 
+  filter(iso_code == 'USA') %>% 
+  map(~sum(is.na(.))) %>% 
+  as_tibble() %>% 
+  gather(key = 'variable', value = 'n_na') %>% 
+  arrange(desc(n_na))
+```
+We can see for many years, we don't have data about the USA's electricity breakdown by source. Wde saw that the UK has more fields without NAs. Let's do the same thing for the UK.
+
+```{r}
+owid_df %>% 
+  filter(iso_code == 'GBR') %>% 
+  map(~sum(is.na(.))) %>% 
+  as_tibble() %>% 
+  gather(key = 'variable', value = 'n_na') %>% 
+  arrange(desc(n_na))
+```
+Since the UK has fewer NAs, let's play around with that data only.
+
+```{r}
+uk_df <- 
+  owid_df %>% 
+  filter(iso_code == 'GBR')
+
+uk_df %>% 
+  colnames()
+```
+
+What we have data about: 
+
+* energy production
+* energy consumption
+* electricity use and breakdown by type
+* renewables (and breakdown)
+
+
+```{r}
+uk_df %>% 
+  select(year, electricity_generation) %>% 
+  ggplot(mapping = aes(x = year, y = electricity_generation)) +
+  geom_line()
+```
+
+```{r}
+uk_df %>% 
+  select_at(vars(contains('elec'))) %>% 
+  colnames()
+```
+Let's look at the breakdown of where electricity generated in the UK comes from:
+
+```{r}
+uk_df %>% 
+  select(
+    year,
+    electricity_generation, 
+    biofuel_electricity, 
+    coal_electricity,
+    fossil_electricity, 
+    gas_electricity,
+    hydro_electricity,
+    nuclear_electricity,
+    oil_electricity,
+    other_renewable_electricity,
+    solar_electricity,
+    wind_electricity
+  ) %>% 
+  gather(electricity_generation:wind_electricity, key="source", value="twh") %>% 
+  ggplot(mapping = aes(x = year, y = twh, color = source)) +
+  geom_line()
+```
+
+Let's see which years actually have data on electricity.
+
+```{r}
+uk_df %>% 
+  select(electricity_generation, year) %>% 
+  drop_na %>% 
+  select(year) %>% 
+  unique()
+```
+```{r}
+uk_electricity <- 
+  uk_df %>% 
+  select(
+    year,
+    electricity_generation, 
+    biofuel_electricity, 
+    coal_electricity,
+    fossil_electricity, 
+    gas_electricity,
+    hydro_electricity,
+    nuclear_electricity,
+    oil_electricity,
+    other_renewable_electricity,
+    other_renewable_exc_biofuel_electricity,
+    renewables_electricity,
+    solar_electricity,
+    wind_electricity
+  ) %>% 
+  filter(year >= 1985)
+```
+
+
+```{r}
+uk_electricity %>% 
+  gather(electricity_generation:wind_electricity, key="source", value="twh") %>% 
+  ggplot(mapping = aes(x = year, y = twh, color = source)) +
+  geom_line()
+```
+```{r}
+uk_electricity %>% 
+  gather(electricity_generation:wind_electricity, key="source", value="twh") %>% 
+  ggplot(mapping = aes(x = year, y = twh, fill = source)) +
+  geom_area()
+```
+
+Electricity generated from fossil fuels (coal, oil, gas).
+
+```{r}
+uk_electricity %>% 
+  mutate(
+    all_fossil = coal_electricity + gas_electricity + oil_electricity
+  ) %>% 
+  select(year, all_fossil, fossil_electricity) %>% 
+  mutate(diff = all_fossil - fossil_electricity)
+```
+Electricity generated from renewable sources(hydro, solar, wind, biofuel).
+
+```{r}
+uk_electricity %>% 
+  mutate(
+    all_renewable = hydro_electricity + solar_electricity + wind_electricity,
+    all_renewable = if_else(
+      is.na(biofuel_electricity), 
+      all_renewable,
+      all_renewable + biofuel_electricity
+    ),
+    all_renewable = if_else(
+      is.na(other_renewable_exc_biofuel_electricity), 
+      all_renewable,
+      all_renewable + other_renewable_exc_biofuel_electricity
+    )
+  ) %>% 
+  select(year, all_renewable, renewables_electricity) %>% 
+  mutate(diff = all_renewable - renewables_electricity)
+```
+```{r}
+uk_electricity %>% 
+  select(
+    electricity_generation, 
+    fossil_electricity, 
+    renewables_electricity,
+    nuclear_electricity
+  ) %>% 
+  mutate(
+    total = fossil_electricity + renewables_electricity + nuclear_electricity
+  )
+```
+```{r}
+uk_electricity %>% 
+  ggplot(mapping = aes(x = year, y = fossil_electricity)) + 
+  geom_line(color = 'brown') + 
+  geom_line(aes(y = renewables_electricity), color = 'green')
+```
+
+```{r}
+year_cross <- 
+  uk_electricity %>% 
+  filter(renewables_electricity > fossil_electricity) %>% 
+  pull(year)
+
+uk_electricity %>% 
+  ggplot(mapping = aes(x = year, y = electricity_generation)) + 
+  geom_area(fill = 'lightblue') + 
+  geom_area(aes(y = fossil_electricity), fill = 'slategray') + 
+  geom_area(aes(y = nuclear_electricity), fill = 'mediumpurple') + 
+  geom_area(aes(y = renewables_electricity), fill = 'limegreen')
+  
+```
+
+Issue: this has overlaps -- would need to do a cumulative sum if we wanted to see breakdown.
+
+Use factors instead:
+
+```{r}
+data_2020 <-
+  uk_electricity %>% 
+  filter(year == 2020) %>% 
+  select(fossil_electricity, nuclear_electricity, renewables_electricity) %>% 
+  rename(
+    `Fossil fuels` = fossil_electricity,
+    `Nuclear` = nuclear_electricity, 
+    `Renewables` = renewables_electricity
+  ) %>% 
+  gather(`Fossil fuels`:`Renewables`, key = 'source', value = 'twh')
+
+uk_electricity %>% 
+  select(
+    year,
+    electricity_generation, 
+    fossil_electricity, 
+    nuclear_electricity, 
+    renewables_electricity
+  ) %>% 
+  gather(fossil_electricity:renewables_electricity, key = 'source', value = 'twh') %>% 
+  ggplot(mapping = aes(x = year, y = twh, fill = source)) + 
+  geom_area()
+```
+
+
+## Refining some ideas
+
+Questions I have after EDA:
+
+* Why does generation in the UK decrease in the early 2000s? 
+
+## Final visualizations
