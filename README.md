@@ -6,6 +6,6 @@ It's been a few years since then, so I figured I'd exercise my data viz muscles 
 
 ## Some example visualizations
 
-[Top countries by percent women in parliament](example_viz/top_women_parliament.png)
+![Top countries by percent women in parliament](example_viz/top_women_parliament.png)
 
-[Bottom countries by percent women in parliament](example_viz/bottom_women_parliament.png)
+![Bottom countries by percent women in parliament](example_viz/bottom_women_parliament.png)
